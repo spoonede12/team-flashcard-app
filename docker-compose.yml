@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  flashcard-app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./flashcards.db:/app/flashcards.db
+    environment:
+      - ENVIRONMENT=production
+    restart: unless-stopped
