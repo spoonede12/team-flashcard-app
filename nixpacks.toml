@@ -2,10 +2,13 @@
 providers = ["python"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["pip install --no-cache-dir -r requirements.txt"]
 
 [phases.build]
-cmds = ["echo 'Frontend already built and included in backend/static'"]
+cmds = ["echo 'No build needed - single file app'"]
 
 [start]
-cmd = "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+cmd = "python simple_app.py"
+
+[variables]
+NIXPACKS_NO_NODEJS = "1"

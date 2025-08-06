@@ -1,12 +1,13 @@
 # Railway Deployment Configuration
 [build]
   builder = "NIXPACKS"
-  buildCommand = "echo 'Frontend already built'"
+  buildCommand = "echo 'Python only - no frontend build needed'"
 
 [deploy]
-  startCommand = "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+  startCommand = "python simple_app.py"
   restartPolicyType = "ON_FAILURE"
 
 [env]
   ENVIRONMENT = "production"
   PYTHONUNBUFFERED = "1"
+  NIXPACKS_NO_NODEJS = "1"
