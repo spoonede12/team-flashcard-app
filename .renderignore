@@ -1,0 +1,12 @@
+# Ignore files that confuse deployment platforms
+frontend/
+backend/
+.vscode/
+*.md
+*.sh
+docker-compose.yml
+Dockerfile
+fly.toml
+nixpacks.toml
+railway.toml
+.railwayignore

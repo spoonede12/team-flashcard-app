@@ -4,8 +4,17 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install --no-cache-dir -r requirements-minimal.txt
+    buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: python simple_app.py
+    buildFilter:
+      paths:
+      - simple_app.py
+      - requirements.txt
+      - runtime.txt
+      ignoredPaths:
+      - frontend/**
+      - backend/**
+      - package.json
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
