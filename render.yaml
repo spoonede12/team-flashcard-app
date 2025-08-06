@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: flashcard-app
+    env: python
+    buildCommand: pip install -r requirements-minimal.txt
+    startCommand: python simple_app.py
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: ENVIRONMENT
+        value: production

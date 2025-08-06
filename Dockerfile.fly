@@ -1,0 +1,17 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy requirements and install Python dependencies
+COPY requirements-minimal.txt .
+RUN pip install --no-cache-dir -r requirements-minimal.txt
+
+# Copy application file
+COPY simple_app.py .
+
+# Create uploads directory
+RUN mkdir -p uploads
+
+EXPOSE 8000
+
+CMD ["python", "simple_app.py"]
