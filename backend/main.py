@@ -9,11 +9,11 @@ from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import List, Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 import os
 import uuid
 import shutil
+import hashlib
+import secrets
 
 # Authentication configuration
 SECRET_KEY = "your-secret-key-change-in-production"
@@ -24,8 +24,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 VALID_USERNAME = "dave"
 VALID_PASSWORD = "india"
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Simple token storage (in production, use Redis or database)
+active_tokens = set()
+
+# Simple authentication
 security = HTTPBearer()
 
 # Database setup
@@ -75,19 +77,12 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
 # Authentication functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    # Simple token generation using secrets
+    token = secrets.token_urlsafe(32)
+    active_tokens.add(token)
+    return token
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     credentials_exception = HTTPException(
@@ -95,18 +90,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
+    
+    if credentials.credentials not in active_tokens:
         raise credentials_exception
     
-    if token_data.username != VALID_USERNAME:
-        raise credentials_exception
-    return token_data.username
+    return VALID_USERNAME
 
 # Pydantic models
 class DeckCreate(BaseModel):
