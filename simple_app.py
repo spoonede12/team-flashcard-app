@@ -192,11 +192,65 @@ async def serve_frontend():
             </div>
             <div id="dashboard" style="display:none;">
                 <h2>Welcome to Team Flashcards!</h2>
-                <p>Your app is running successfully!</p>
-                <p>✅ Authentication working</p>
-                <p>✅ Database connected</p>
-                <p>✅ Ready for team photos</p>
-                <button onclick="logout()">Logout</button>
+                
+                <div id="mainMenu">
+                    <button onclick="showCreateDeck()">📚 Create New Deck</button>
+                    <button onclick="showBulkUpload()">📤 Bulk Upload Photos</button>
+                    <button onclick="showDecks()">🎯 Study Decks</button>
+                    <button onclick="logout()">🚪 Logout</button>
+                </div>
+                
+                <div id="createDeckForm" style="display:none;">
+                    <h3>Create New Deck</h3>
+                    <div class="form-group">
+                        <label>Deck Name</label>
+                        <input type="text" id="deckName" placeholder="e.g., India Team 2025">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="deckDesc" placeholder="Team member photos and roles">
+                    </div>
+                    <button onclick="createDeck()">Create Deck</button>
+                    <button onclick="showMainMenu()">Cancel</button>
+                </div>
+                
+                <div id="bulkUploadForm" style="display:none;">
+                    <h3>Bulk Upload Team Photos</h3>
+                    <p>Upload photos named like: "John Doe - Software Engineer.jpg"</p>
+                    <div class="form-group">
+                        <label>Select Deck</label>
+                        <select id="uploadDeckSelect">
+                            <option value="">Choose a deck...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Upload Photos</label>
+                        <input type="file" id="photoFiles" multiple accept="image/*">
+                    </div>
+                    <button onclick="uploadPhotos()">Upload Photos</button>
+                    <button onclick="showMainMenu()">Cancel</button>
+                </div>
+                
+                <div id="decksList" style="display:none;">
+                    <h3>Your Decks</h3>
+                    <div id="decksContainer"></div>
+                    <button onclick="showMainMenu()">Back to Menu</button>
+                </div>
+                
+                <div id="studyMode" style="display:none;">
+                    <h3 id="studyDeckName">Study Session</h3>
+                    <div id="flashcard" style="text-align:center; padding:20px; border:2px solid #ccc; border-radius:10px; margin:20px 0;">
+                        <div id="cardImage"></div>
+                        <div id="cardText"></div>
+                        <button id="flipButton" onclick="flipCard()">Show Answer</button>
+                    </div>
+                    <div id="studyControls" style="display:none;">
+                        <button onclick="rateCard('easy')">😊 Easy</button>
+                        <button onclick="rateCard('medium')">🤔 Medium</button>
+                        <button onclick="rateCard('hard')">😵 Hard</button>
+                    </div>
+                    <button onclick="showMainMenu()">End Study Session</button>
+                </div>
             </div>
         </div>
         
@@ -237,6 +291,234 @@ async def serve_frontend():
                 document.getElementById('username').value = '';
                 document.getElementById('password').value = '';
                 document.getElementById('message').innerHTML = '';
+                showMainMenu();
+            }
+            
+            function showMainMenu() {
+                document.getElementById('mainMenu').style.display = 'block';
+                document.getElementById('createDeckForm').style.display = 'none';
+                document.getElementById('bulkUploadForm').style.display = 'none';
+                document.getElementById('decksList').style.display = 'none';
+                document.getElementById('studyMode').style.display = 'none';
+            }
+            
+            function showCreateDeck() {
+                document.getElementById('mainMenu').style.display = 'none';
+                document.getElementById('createDeckForm').style.display = 'block';
+            }
+            
+            function showBulkUpload() {
+                document.getElementById('mainMenu').style.display = 'none';
+                document.getElementById('bulkUploadForm').style.display = 'block';
+                loadDecks();
+            }
+            
+            function showDecks() {
+                document.getElementById('mainMenu').style.display = 'none';
+                document.getElementById('decksList').style.display = 'block';
+                loadDecksList();
+            }
+            
+            async function createDeck() {
+                const name = document.getElementById('deckName').value;
+                const description = document.getElementById('deckDesc').value;
+                
+                if (!name) {
+                    alert('Please enter a deck name');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/decks', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({name: name, description: description})
+                    });
+                    
+                    if (response.ok) {
+                        alert('Deck created successfully!');
+                        document.getElementById('deckName').value = '';
+                        document.getElementById('deckDesc').value = '';
+                        showMainMenu();
+                    } else {
+                        alert('Failed to create deck');
+                    }
+                } catch (error) {
+                    alert('Error creating deck');
+                }
+            }
+            
+            async function loadDecks() {
+                try {
+                    const response = await fetch('/decks', {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const decks = await response.json();
+                        const select = document.getElementById('uploadDeckSelect');
+                        select.innerHTML = '<option value="">Choose a deck...</option>';
+                        decks.forEach(deck => {
+                            select.innerHTML += `<option value="${deck.id}">${deck.name}</option>`;
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading decks');
+                }
+            }
+            
+            async function loadDecksList() {
+                try {
+                    const response = await fetch('/decks', {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const decks = await response.json();
+                        const container = document.getElementById('decksContainer');
+                        container.innerHTML = '';
+                        decks.forEach(deck => {
+                            container.innerHTML += `
+                                <div style="border:1px solid #ccc; padding:10px; margin:10px 0; border-radius:5px;">
+                                    <h4>${deck.name}</h4>
+                                    <p>${deck.description || 'No description'}</p>
+                                    <button onclick="startStudy(${deck.id}, '${deck.name}')">Study This Deck</button>
+                                </div>
+                            `;
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading decks');
+                }
+            }
+            
+            async function uploadPhotos() {
+                const deckId = document.getElementById('uploadDeckSelect').value;
+                const files = document.getElementById('photoFiles').files;
+                
+                if (!deckId) {
+                    alert('Please select a deck');
+                    return;
+                }
+                
+                if (files.length === 0) {
+                    alert('Please select photos to upload');
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('deck_id', deckId);
+                
+                for (let file of files) {
+                    formData.append('files', file);
+                }
+                
+                try {
+                    const response = await fetch('/bulk-upload', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        },
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        alert('Photos uploaded successfully!');
+                        document.getElementById('photoFiles').value = '';
+                        showMainMenu();
+                    } else {
+                        alert('Failed to upload photos');
+                    }
+                } catch (error) {
+                    alert('Error uploading photos');
+                }
+            }
+            
+            let currentCards = [];
+            let currentCardIndex = 0;
+            let isFlipped = false;
+            
+            async function startStudy(deckId, deckName) {
+                try {
+                    const response = await fetch(`/decks/${deckId}/study`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        currentCards = await response.json();
+                        if (currentCards.length === 0) {
+                            alert('No cards in this deck to study!');
+                            return;
+                        }
+                        
+                        currentCardIndex = 0;
+                        document.getElementById('studyDeckName').textContent = `Studying: ${deckName}`;
+                        document.getElementById('mainMenu').style.display = 'none';
+                        document.getElementById('decksList').style.display = 'none';
+                        document.getElementById('studyMode').style.display = 'block';
+                        showCard();
+                    }
+                } catch (error) {
+                    alert('Error loading study cards');
+                }
+            }
+            
+            function showCard() {
+                if (currentCardIndex >= currentCards.length) {
+                    alert('Study session complete!');
+                    showMainMenu();
+                    return;
+                }
+                
+                const card = currentCards[currentCardIndex];
+                isFlipped = false;
+                
+                document.getElementById('cardImage').innerHTML = card.image_url ? 
+                    `<img src="${card.image_url}" style="max-width:200px; max-height:200px; border-radius:10px;">` : 
+                    '<div style="width:200px; height:200px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; border-radius:10px;">No Image</div>';
+                
+                document.getElementById('cardText').innerHTML = '<h3>Who is this?</h3>';
+                document.getElementById('flipButton').style.display = 'block';
+                document.getElementById('studyControls').style.display = 'none';
+            }
+            
+            function flipCard() {
+                if (!isFlipped) {
+                    const card = currentCards[currentCardIndex];
+                    document.getElementById('cardText').innerHTML = `<h3>${card.front}</h3><p>${card.back}</p>`;
+                    document.getElementById('flipButton').style.display = 'none';
+                    document.getElementById('studyControls').style.display = 'block';
+                    isFlipped = true;
+                }
+            }
+            
+            async function rateCard(difficulty) {
+                const card = currentCards[currentCardIndex];
+                
+                try {
+                    await fetch(`/cards/${card.id}/review`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({difficulty: difficulty})
+                    });
+                } catch (error) {
+                    console.error('Error recording review');
+                }
+                
+                currentCardIndex++;
+                showCard();
             }
             
             // Check if already logged in
