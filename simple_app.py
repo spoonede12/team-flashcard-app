@@ -132,7 +132,13 @@ def get_decks(current_user: str = Depends(verify_token)):
 
 # Create new deck
 @app.post("/decks")
-def create_deck(name: str = Form(), description: str = Form(""), current_user: str = Depends(verify_token)):
+async def create_deck(request_data: dict, current_user: str = Depends(verify_token)):
+    name = request_data.get("name", "")
+    description = request_data.get("description", "")
+    
+    if not name:
+        raise HTTPException(status_code=400, detail="Deck name is required")
+    
     conn = sqlite3.connect('flashcards.db')
     cursor = conn.cursor()
     
@@ -228,11 +234,13 @@ def get_study_cards(deck_id: int, current_user: str = Depends(verify_token)):
 
 # Record card review
 @app.post("/cards/{card_id}/review")
-def review_card(
+async def review_card(
     card_id: int,
-    difficulty: str = Form(),
+    request_data: dict,
     current_user: str = Depends(verify_token)
 ):
+    difficulty = request_data.get("difficulty", "medium")
+    
     conn = sqlite3.connect('flashcards.db')
     cursor = conn.cursor()
     
@@ -643,11 +651,9 @@ async def serve_frontend():
 
 if __name__ == "__main__":
     import uvicorn
-    # Try to get port from environment, fallback to 3000
-    try:
-        port = int(os.environ.get("PORT", 3000))
-    except (ValueError, TypeError):
-        port = 3000
+    # Replit port configuration
+    port = int(os.environ.get("PORT", 8080))
     
     print(f"🚀 Starting server on port {port}")
+    print(f"🌐 Server will be available at http://0.0.0.0:{port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
