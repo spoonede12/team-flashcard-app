@@ -5,8 +5,11 @@ backend/
 *.md
 *.sh
 docker-compose.yml
-Dockerfile
+Dockerfile*
 fly.toml
 nixpacks.toml
 railway.toml
 .railwayignore
+node_modules/
+package*.json
+.git/
