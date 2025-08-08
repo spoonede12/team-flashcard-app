@@ -3,7 +3,7 @@ Simplified single-file FastAPI deployment for team flashcards
 This version has minimal dependencies for easier deployment
 """
 
-from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Form, status
+from fastapi import FastAPI, HTTPException, Depends, File, UploadFile, Form, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -132,7 +132,8 @@ def get_decks(current_user: str = Depends(verify_token)):
 
 # Create new deck
 @app.post("/decks")
-async def create_deck(request_data: dict, current_user: str = Depends(verify_token)):
+async def create_deck(request: Request, current_user: str = Depends(verify_token)):
+    request_data = await request.json()
     name = request_data.get("name", "")
     description = request_data.get("description", "")
     
@@ -236,9 +237,10 @@ def get_study_cards(deck_id: int, current_user: str = Depends(verify_token)):
 @app.post("/cards/{card_id}/review")
 async def review_card(
     card_id: int,
-    request_data: dict,
+    request: Request,
     current_user: str = Depends(verify_token)
 ):
+    request_data = await request.json()
     difficulty = request_data.get("difficulty", "medium")
     
     conn = sqlite3.connect('flashcards.db')
