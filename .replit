@@ -1,0 +1,8 @@
+run = "python simple_app.py"
+language = "python3"
+
+[nix]
+channel = "stable-23.05"
+
+[deployment]
+run = ["sh", "-c", "python simple_app.py"]
