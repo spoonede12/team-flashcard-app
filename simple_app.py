@@ -153,6 +153,116 @@ def create_deck(name: str = Form(), description: str = Form(""), current_user: s
         "card_count": 0
     }
 
+# Bulk upload endpoint
+@app.post("/bulk-upload")
+async def bulk_upload_photos(
+    deck_id: int = Form(),
+    files: List[UploadFile] = File(...),
+    current_user: str = Depends(verify_token)
+):
+    conn = sqlite3.connect('flashcards.db')
+    cursor = conn.cursor()
+    
+    uploaded_count = 0
+    
+    for file in files:
+        if file.content_type and file.content_type.startswith('image/'):
+            # Parse filename to extract name and role
+            filename = file.filename
+            name_part = filename.rsplit('.', 1)[0]  # Remove extension
+            
+            if ' - ' in name_part:
+                person_name, person_role = name_part.split(' - ', 1)
+            else:
+                person_name = name_part
+                person_role = "Team Member"
+            
+            # Save file
+            file_id = str(uuid.uuid4())
+            file_extension = filename.split('.')[-1] if '.' in filename else 'jpg'
+            new_filename = f"{file_id}.{file_extension}"
+            file_path = os.path.join(UPLOAD_DIR, new_filename)
+            
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            # Create flashcard record
+            cursor.execute('''
+                INSERT INTO flashcards (deck_id, person_name, person_role, image_filename, front, back)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (deck_id, person_name, person_role, new_filename, person_name, person_role))
+            
+            uploaded_count += 1
+    
+    conn.commit()
+    conn.close()
+    
+    return {"message": f"Successfully uploaded {uploaded_count} photos"}
+
+# Get cards for study
+@app.get("/decks/{deck_id}/study")
+def get_study_cards(deck_id: int, current_user: str = Depends(verify_token)):
+    conn = sqlite3.connect('flashcards.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, person_name, person_role, image_filename, front, back
+        FROM flashcards 
+        WHERE deck_id = ?
+        ORDER BY RANDOM()
+        LIMIT 20
+    ''', (deck_id,))
+    
+    cards = []
+    for row in cursor.fetchall():
+        image_url = f"/uploads/{row[3]}" if row[3] else None
+        cards.append({
+            "id": row[0],
+            "front": row[4] or row[1],
+            "back": row[5] or row[2],
+            "image_url": image_url
+        })
+    
+    conn.close()
+    return cards
+
+# Record card review
+@app.post("/cards/{card_id}/review")
+def review_card(
+    card_id: int,
+    difficulty: str = Form(),
+    current_user: str = Depends(verify_token)
+):
+    conn = sqlite3.connect('flashcards.db')
+    cursor = conn.cursor()
+    
+    # Simple spaced repetition algorithm
+    difficulty_map = {"easy": 1, "medium": 3, "hard": 5}
+    difficulty_score = difficulty_map.get(difficulty, 3)
+    
+    # Calculate next review date
+    days_to_add = {1: 3, 3: 1, 5: 0.5}[difficulty_score]
+    next_review = datetime.now() + timedelta(days=days_to_add)
+    
+    cursor.execute('''
+        UPDATE flashcards 
+        SET difficulty = ?, last_reviewed = ?, next_review = ?, review_count = review_count + 1
+        WHERE id = ?
+    ''', (difficulty_score, datetime.now().isoformat(), next_review.isoformat(), card_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"status": "success"}
+
+# Serve uploaded images
+@app.get("/uploads/{filename}")
+async def get_uploaded_file(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
+
 # Root endpoint - serve frontend
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
@@ -533,9 +643,10 @@ async def serve_frontend():
 
 if __name__ == "__main__":
     import uvicorn
-    # Try multiple ports for Replit compatibility
-    port = int(os.environ.get("PORT", os.environ.get("REPL_SLUG", 3000)))
-    if isinstance(port, str):
+    # Try to get port from environment, fallback to 3000
+    try:
+        port = int(os.environ.get("PORT", 3000))
+    except (ValueError, TypeError):
         port = 3000
     
     print(f"🚀 Starting server on port {port}")
