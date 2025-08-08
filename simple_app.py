@@ -251,5 +251,10 @@ async def serve_frontend():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
+    # Try multiple ports for Replit compatibility
+    port = int(os.environ.get("PORT", os.environ.get("REPL_SLUG", 3000)))
+    if isinstance(port, str):
+        port = 3000
+    
+    print(f"🚀 Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
